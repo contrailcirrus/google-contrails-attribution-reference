@@ -1,0 +1,7 @@
+aiohttp
+pandas
+plotly
+pycontrails
+jupyter
+ipykernel
+pyarrow
