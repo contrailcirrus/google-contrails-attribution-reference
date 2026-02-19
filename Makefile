@@ -11,6 +11,7 @@ help:
 	@echo "Available commands:"
 	@echo "  make setup  - Create venv and install dependencies from requirements.txt"
 	@echo "  make kernel - Register the virtual environment as a Jupyter kernel"
+	@echo "  make test   - Run unit tests using pytest"
 	@echo "  make clean  - Remove the virtual environment and the Jupyter kernel"
 
 setup:
