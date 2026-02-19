@@ -1,4 +1,5 @@
 aiohttp
+dotenv
 jupyter
 ipykernel
 numpy
