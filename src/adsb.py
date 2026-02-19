@@ -6,6 +6,7 @@ import time
 from datetime import date, datetime, timedelta
 
 import aiohttp
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -13,6 +14,83 @@ from pycontrails import Flight
 from pycontrails.core import flight
 
 _API_BASE_URL = "https://api.contrails.org/v1/adsb/telemetry"
+
+def generate_flight_id(
+    start_timestamp: datetime,
+    end_timestamp: datetime,
+    icao_address: str,
+    midnight_threshold_mins: int,
+) -> str:
+    """Generate a flight ID for a flight waypoint based on timestamp and ICAO address.
+
+    Flight IDs are generated based on the flight's start and end timestamps and its
+    ICAO address. All IDs are prefixed with SPIRE-INFERRED-{icao_address}-.
+    The rest of the ID depends on the time of day:
+
+        1. Midnight Rollover/Holdover: Special formatting is applied if the flight
+        period crosses midnight within a certain threshold (midnight_threshold_mins).
+            * If the flight ends just after midnight (a "holdover"), the ID includes
+            the dates of the day before the start and the start date, formatted as:
+            {start_date - 1 day}-rollover-{start_date}.
+            * If the flight starts just before midnight (a "rollover"), the ID
+            includes the start date and the day after the end date, formatted as:
+            {start_date}-rollover-{end_date + 1 day}.
+
+        2. Standard: If the flight period doesn't cross the midnight threshold, the
+        ID is generated using the Unix timestamp (in seconds) of the start and end
+        times: {int(start_timestamp)}-{int(end_timestamp)}.
+
+    Parameters
+    ----------
+    start_timestamp : datetime
+        The start timestamp of the waypoint group.
+    end_timestamp : datetime
+        The end timestamp of the waypoint group.
+    icao_address : str
+        The ICAO address of the flight.
+    midnight_threshold_mins : int
+        The number of minutes before/after midnight to consider for generating
+        a rollover/holdover ID.
+
+    Returns
+    -------
+    str
+        The generated flight ID.
+
+    Examples
+    --------
+    Holdover: SPIRE-INFERRED-ABC123-2026-02-03-rollover-2026-02-04
+    Rollover: SPIRE-INFERRED-ABC123-2026-02-04-rollover-2026-02-05
+    Standard: SPIRE-INFERRED-ABC123-1760035200-1760042400
+    """
+    is_rollover = (
+        start_timestamp.time()
+        >= (pd.to_datetime("23:59:59") - pd.Timedelta(minutes=midnight_threshold_mins)).time()
+    )
+    is_holdover = (
+        end_timestamp.time()
+        <= (pd.to_datetime("00:00:00") + pd.Timedelta(minutes=midnight_threshold_mins)).time()
+    )
+    if is_holdover:
+        generated_id = (
+            f"SPIRE-INFERRED-{icao_address}-"
+            f"{start_timestamp.date() - pd.Timedelta(days=1)}-rollover-"
+            f"{start_timestamp.date()}"
+        )
+    elif is_rollover:
+        generated_id = (
+            f"SPIRE-INFERRED-{icao_address}-"
+            f"{start_timestamp.date()}-rollover-"
+            f"{end_timestamp.date() + pd.Timedelta(days=1)}"
+        )
+    else:
+        generated_id = (
+            f"SPIRE-INFERRED-{icao_address}-"
+            f"{int(start_timestamp.timestamp())}-{int(end_timestamp.timestamp())}"
+        )
+
+    return generated_id
+
 
 async def fetch_adsb_data_hour(
     session: aiohttp.ClientSession, dt_hour: datetime, api_key: str
