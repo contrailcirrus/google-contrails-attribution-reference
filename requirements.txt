@@ -1,7 +1,10 @@
 aiohttp
-pandas
-plotly
-pycontrails
 jupyter
 ipykernel
+numpy
+pandas
+plotly
 pyarrow
+pycontrails
+pytest
+pytest-asyncio
