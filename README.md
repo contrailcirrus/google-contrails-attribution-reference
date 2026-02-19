@@ -23,6 +23,9 @@ This release focuses on providing core library functions and demostration notebo
 *   **Contrail Matching:**
     *   ETA: Summer/Fall 2026
     *   Performs flight matching over advected flight segments to a set of contrail detections.
+ 
+<img width="909" height="403" alt="Screenshot 2026-02-19 at 1 25 48 PM" src="https://github.com/user-attachments/assets/58b4b6ff-7736-4b5d-b76f-4b1a52cb0bde" />
+
 
 ## Data Requirements
 
