@@ -9,3 +9,8 @@ pyarrow
 pycontrails
 pytest
 pytest-asyncio
+absl-py==2.4.0
+tree-math==0.2.1
+jax==0.4.34
+jaxlib==0.4.34
+tensorflow-probability==0.25.0
