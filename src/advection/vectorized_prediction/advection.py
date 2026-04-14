@@ -244,7 +244,7 @@ class AdvectionState:
       else:
         attrs = {}
 
-    return Flight(data=data, attrs=attrs)
+    return Flight(data=data, attrs=attrs, drop_duplicated_times=True)
 
 
 class LagrangianAdvector:
