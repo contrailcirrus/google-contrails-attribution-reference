@@ -14,3 +14,5 @@ tree-math==0.2.1
 jax==0.4.34
 jaxlib==0.4.34
 tensorflow-probability==0.25.0
+matplotlib
+xarray
