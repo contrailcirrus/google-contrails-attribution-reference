@@ -76,11 +76,11 @@ class MoistAdvectionTest(parameterized.TestCase):
     )
 
     # Dry advection (w=0, should stay at same level)
-    dry_result = advector.advect(fl, times[:2])
+    _, dry_result = advector.advect(fl, times[:2])
     self.assertAlmostEqual(float(dry_result.dataframe['level'].iloc[0]), 225.0)
 
     # Moist advection (should sink due to terminal velocity)
-    moist_result = advector.advect(fl, times[:2], use_moist_advection=True)
+    _, moist_result = advector.advect(fl, times[:2], use_moist_advection=True)
     # Pressure should increase (sinking)
     self.assertGreater(float(moist_result.dataframe['level'].iloc[-1]), 225.0)
 

@@ -30,7 +30,7 @@ class FlightAdvectionTest(absltest.TestCase):
     self.assertEqual(state.n_parcels, 2)
     self.assertEqual(state.pressure.shape, (2,))
 
-    fl_back = state.to_flight(source_flight=fl)
+    fl_back = state.to_flight(source_flight=fl)[0]
     self.assertIsInstance(fl_back, Flight)
     self.assertEqual(fl_back.attrs["flight_id"], "test_flight")
     self.assertIn("extra_col", fl_back.data)
@@ -41,8 +41,6 @@ class FlightAdvectionTest(absltest.TestCase):
 
     Checks the output structure and values.
     """
-    # Simple 2x2x2x2 weather
-    # times in hours since 1970-01-01
     times = np.array([0.0, 10.0])
     levels = np.array([100.0, 1000.0])
     lats = np.array([-80.0, 80.0])
@@ -84,21 +82,32 @@ class FlightAdvectionTest(absltest.TestCase):
 
     # Advect for 1 hour
     t_eval = pd.to_datetime(["1970-01-01 01:00:00"], utc=True)
-    out_fl = advector.advect(fl, t_eval)
+    orig_fl, out_fl = advector.advect(fl, t_eval)
 
+    self.assertIsInstance(orig_fl, Flight)
     self.assertIsInstance(out_fl, Flight)
-    # 2 waypoints in output (initial + eval) because of advect's logic to
-    # include start in evaluations if 1D.
-    self.len_out_fl = len(out_fl)
-    self.assertEqual(self.len_out_fl, 2)
+
+    # Each Flight object contains 1 waypoint (the parcel from fl)
+    self.assertEqual(len(orig_fl), 1)
+    self.assertEqual(len(out_fl), 1)
+
     self.assertIn("metadata", out_fl.data)
     self.assertEqual(out_fl.data["metadata"][0], "keep_me")
-    self.assertEqual(out_fl.data["metadata"][1], "keep_me")
 
-    # Check longitude change (10 m/s * 3600 s = 36000 m = 36 km)
-    # At equator 1 deg lon approx 111.32 km. So 36/111.32 approx 0.323 deg.
-    self.assertLess(0.3, out_fl.data["longitude"][1])
-    self.assertLess(out_fl.data["longitude"][1], 0.4)
+    self.assertEqual(
+        pd.Timestamp(out_fl.data["time"][0]),
+        pd.Timestamp("1970-01-01 00:00:00"),
+    )
+    self.assertEqual(
+        pd.Timestamp(out_fl.data["advected_time"][0]),
+        pd.Timestamp("1970-01-01 01:00:00"),
+    )
+
+    # Check longitude change (10 m/s * 3600 s = 36 km eastward drift)
+    # At equator: 1 deg lon ≈ 111.32 km. 36 / 111.32 ≈ 0.323 deg.
+    self.assertLess(0.3, out_fl.data["longitude"][0])
+    self.assertLess(out_fl.data["longitude"][0], 0.4)
+
 
 
 if __name__ == "__main__":
