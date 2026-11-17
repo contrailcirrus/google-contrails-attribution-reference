@@ -193,8 +193,19 @@ class AdvectionState:
         longitude=input_flight.data['longitude'],
     )
 
-  def to_flight(self, source_flight: Optional[Flight] = None) -> Flight:
-    """Converts the AdvectionState back to a pycontrails Flight object."""
+  def to_flight(self, source_flight: Flight | None = None) -> list[Flight]:
+    """Converts the AdvectionState back to pycontrails Flight object(s).
+
+    Returns a list of Flight objects, one for each step in the AdvectionState.
+
+    Args:
+      source_flight: Optional original Flight whose metadata and extra columns
+        (including original formation `time`) are copied onto the output
+        Flight(s).
+
+    Returns:
+      A list of Flight objects (one per step).
+    """
     time_dt = casting.float_to_datetime64(
         self.time, reference_time=cs.REFERENCE_TIME, unit=cs.TIME_UNIT
     )
@@ -204,32 +215,37 @@ class AdvectionState:
     # Handle both 1D (single step) and 2D (multiple steps) states
     if self.n_steps is not None:
       # Axis 0 is steps, axis 1 is parcels.
-      # ravel() is step-major: [s0p0, s0p1, ..., s0pN, s1p0, s1p1, ...]
       time_arr = time_dt
       if time_arr.ndim == 1:
         time_arr = np.repeat(time_dt[:, np.newaxis], self.n_parcels, axis=1)
 
-      data = {
-          'time': time_arr.ravel(),
-          'latitude': latlon.latitude.ravel(),
-          'longitude': latlon.longitude.ravel(),
-          'level': self.pressure.ravel(),
-          'altitude': pl_to_m(self.pressure.ravel()),
-          'parcel_id': np.tile(np.arange(self.n_parcels), self.n_steps),
-      }
-
-      if source_flight is not None:
-        # Replicate original columns for each timestep
-        for col in source_flight.data:
-          if col not in data and col != 'altitude':
-            # Use tile to repeat [p0, p1, ..., pN] for each step
-            data[col] = np.tile(source_flight.data[col], self.n_steps)
-        attrs = source_flight.attrs.copy()
-      else:
-        attrs = {}
+      flights = []
+      for i in range(self.n_steps):
+        data = {
+            'time': time_arr[i],
+            'advected_time': time_arr[i],
+            'latitude': latlon.latitude[i],
+            'longitude': latlon.longitude[i],
+            'level': self.pressure[i],
+            'altitude': pl_to_m(self.pressure[i]),
+            'parcel_id': np.arange(self.n_parcels),
+        }
+        if source_flight is not None:
+          # Replicate original columns for each timestep
+          for col in source_flight.data:
+            if col == 'time' or (col not in data and col != 'altitude'):
+              data[col] = source_flight.data[col]
+          attrs = source_flight.attrs.copy()
+        else:
+          attrs = {}
+        flights.append(
+            Flight(data=data, attrs=attrs, drop_duplicated_times=True)
+        )
+      return flights
     else:
       data = {
           'time': time_dt,
+          'advected_time': time_dt,
           'latitude': latlon.latitude,
           'longitude': latlon.longitude,
           'level': self.pressure,
@@ -238,13 +254,13 @@ class AdvectionState:
       }
       if source_flight is not None:
         for col in source_flight.data:
-          if col not in data and col != 'altitude':
+          if col == 'time' or (col not in data and col != 'altitude'):
             data[col] = source_flight.data[col]
         attrs = source_flight.attrs.copy()
       else:
         attrs = {}
 
-    return Flight(data=data, attrs=attrs, drop_duplicated_times=True)
+    return [Flight(data=data, attrs=attrs, drop_duplicated_times=True)]
 
 
 class LagrangianAdvector:
@@ -296,7 +312,7 @@ class LagrangianAdvector:
       use_moist_advection: bool = False,
       rtol: float = 1e-3,
       atol: float = 1e-6,
-  ) -> Union[AdvectionState, Flight]:
+  ) -> Union[AdvectionState, list[Flight]]:
     """Core advection method.
 
     Parameters
@@ -320,8 +336,8 @@ class LagrangianAdvector:
     Returns
     -------
     Union[AdvectionState, Flight]
-        An AdvectionState (or Flight if input was Flight) containing positions at
-        all target times.
+        An AdvectionState (or a list of Flight objects, one per timestep,
+        if input was a Flight) containing positions at all target times.
     """
     is_flight = isinstance(source, Flight)
     if is_flight:
@@ -366,7 +382,8 @@ class LagrangianAdvector:
         use_moist_advection=use_moist_advection,
     )
     if is_flight:
-      return result.to_flight(source_flight=source)
+      out_flights = result.to_flight(source_flight=source)
+      return out_flights
     return result
 
   def _advection_loop(
@@ -481,7 +498,7 @@ class LagrangianAdvector:
       source: Union[AdvectionState, Flight],
       advection_length_hours: float,
       step_size_secs: float = 600,
-  ) -> Union[AdvectionState, Flight]:
+  ) -> Union[AdvectionState, list[Flight]]:
     """Alternative call syntax for simple constant-duration advection."""
     is_flight = isinstance(source, Flight)
     if is_flight:
