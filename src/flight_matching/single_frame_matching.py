@@ -18,8 +18,8 @@ import pandas as pd
 from pycontrails.core import flight
 import xarray as xr
 
-from src.advection.vectorized_prediction import advection as oss_advection
-from src.flight_matching.utils import projection
+from ..advection.vectorized_prediction import advection as oss_advection
+from .utils import projection
 
 Flight = flight.Flight
 MIN_CONTRAIL_LENGTH_KM = 15
