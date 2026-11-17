@@ -1,8 +1,10 @@
 aiohttp
 dotenv
+geojson
 jupyter
 ipykernel
 numpy
+optax
 pandas
 plotly
 pyarrow
