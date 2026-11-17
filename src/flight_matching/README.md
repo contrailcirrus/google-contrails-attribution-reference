@@ -4,7 +4,7 @@ This library implements single-frame flight-contrail matching as outlined in
 [Geraedts _et al_ 2024](https://iopscience.iop.org/article/10.1088/2515-7620/ad11ab),
 enabling users to match flights to contrails.
 
-Multiframe matching is also planned to be implemented.
+Multiframe matching will be implemented in the future.
 
 ## Overview
 
